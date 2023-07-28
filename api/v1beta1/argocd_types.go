@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"strings"
@@ -37,12 +37,12 @@ func init() {
 // Important: Run "make" to regenerate code after modifying this file
 
 //+kubebuilder:object:root=true
-// +kubebuilder:deprecatedversion:warning="ArgoCD v1alpha1 is deprecated, please use v1beta1 instead."
+// +kubebuilder:storageversion
 
 // ArgoCD is the Schema for the argocds API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +operator-sdk:csv:customresourcedefinitions:resources={{ArgoCD,v1alpha1,""}}
+// +operator-sdk:csv:customresourcedefinitions:resources={{ArgoCD,v1beta1,""}}
 // +operator-sdk:csv:customresourcedefinitions:resources={{ArgoCDExport,v1alpha1,""}}
 // +operator-sdk:csv:customresourcedefinitions:resources={{ConfigMap,v1,""}}
 // +operator-sdk:csv:customresourcedefinitions:resources={{CronJob,v1,""}}
