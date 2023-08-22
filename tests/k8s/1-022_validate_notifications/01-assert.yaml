@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  server: Running
+  repo: Running
+  notificationsController: Running
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp4dev
+  labels:
+    app: smtp4dev
+status:
+  replicas: 1

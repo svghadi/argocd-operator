@@ -1,10 +1,89 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: sleep 15
-- script: |
-    set -e 
-
-    kubectl patch cm argocd-notifications-cm -n $NAMESPACE --type merge -p '{"data": {"service.email.gmail": "{host: smtp4dev, port: 2525, from: fake@email.com }" }}'
-- script: sleep 5
-
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: argocd-notifications-cm
+data:
+  service.email.gmail: '{host: smtp4dev, port: 2525, from: fake@email.com }'
+  template.app-deployed: |-
+    email:
+      subject: New version of an application {{(call .repo.GetAppDetails).Type}} is up and running.
+    message: |
+      {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{(call .repo.GetAppDetails)}} is now running new version of deployments manifests.
+    slack:
+      attachments: |
+        [{
+          "title": "{{ .app.metadata.name}}",
+          "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#18be52",
+          "fields": [
+          {
+            "title": "Sync Status",
+            "value": "{{.app.status.sync.status}}",
+            "short": true
+          },
+          {
+            "title": "Repository",
+            "value": "{{.app.spec.source.repoURL}}",
+            "short": true
+          },
+          {
+            "title": "Revision",
+            "value": "{{.app.status.sync.revision}}",
+            "short": true
+          }
+          {{range $index, $c := .app.status.conditions}}
+          {{if not $index}},{{end}}
+          {{if $index}},{{end}}
+          {
+            "title": "{{$c.type}}",
+            "value": "{{$c.message}}",
+            "short": true
+          }
+          {{end}}
+          ]
+        }]
+      deliveryPolicy: Post
+      groupingKey: ""
+      notifyBroadcast: false
+    teams:
+      facts: |
+        [{
+          "name": "Sync Status",
+          "value": "{{.app.status.sync.status}}"
+        },
+        {
+          "name": "Repository",
+          "value": "{{.app.spec.source.repoURL}}"
+        },
+        {
+          "name": "Revision",
+          "value": "{{.app.status.sync.revision}}"
+        }
+        {{range $index, $c := .app.status.conditions}}
+          {{if not $index}},{{end}}
+          {{if $index}},{{end}}
+          {
+            "name": "{{$c.type}}",
+            "value": "{{$c.message}}"
+          }
+        {{end}}
+        ]
+      potentialAction: |-
+        [{
+          "@type":"OpenUri",
+          "name":"Operation Application",
+          "targets":[{
+            "os":"default",
+            "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}"
+          }]
+        },
+        {
+          "@type":"OpenUri",
+          "name":"Open Repository",
+          "targets":[{
+            "os":"default",
+            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+          }]
+        }]
+      themeColor: '#000080'
+      title: New version of an application {{.app.metadata.name}} is up and running.

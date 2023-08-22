@@ -4,5 +4,5 @@ commands:
 - script: | 
     set -e 
   
-    kubectl delete -n $NAMESPACE application.argoproj.io my-app-3
+    kubectl delete -n $NAMESPACE application.argoproj.io helm-guestbook
 - script: sleep 5
