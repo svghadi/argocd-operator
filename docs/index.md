@@ -19,3 +19,4 @@ The operator aims to provide the following, and is a work in progress.
 * Ability to back up and restore an Argo CD cluster from a point in time or on a recurring schedule.
 * Aggregate and expose the metrics for Argo CD and the operator itself using Prometheus and Grafana.
 * Autoscale the Argo CD components as necessary to handle variability in demand.
+
