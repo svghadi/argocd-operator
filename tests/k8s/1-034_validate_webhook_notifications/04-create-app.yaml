@@ -11,15 +11,15 @@ commands:
       name: my-app-3
       namespace: $NAMESPACE
       annotations:
-        "notifications.argoproj.io/subscribe.test-on-created.test-webhook": ""
+        "notifications.argoproj.io/subscribe.test-app-deployed.test-webhook": ""
     spec:
       destination:
-        namespace: $NAMESPACE
+        namespace: default
         server: https://kubernetes.default.svc
       project: default
       source:
-        repoURL: https://github.com/redhat-developer/gitops-operator
-        path: test/examples/nginx
-        targetRevision: HEAD
+        repoURL: https://github.com/svghadi/argocd-example-apps.git
+        path: ./
+        targetRevision: noti
     EOF
 - script: sleep 10

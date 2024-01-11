@@ -5,15 +5,17 @@ metadata:
 data:
   service.webhook.test-webhook: |
     url: https://webhook/hooks/example
-  template.test-app-created: |
+  template.test-app-deployed: |
     webhook:
       test-webhook:
         method: POST
         body: |
-          {"created":"{{.app.metadata.name}}","type":"{{(call .repo.GetAppDetails).Type}}"}
-  trigger.test-on-created: |-
-    - description: Application is created.
-      send: ["test-app-created"]
-      when: "true"
+          {"deployed":"{{.app.metadata.name}}","status":"{{.app.status.operationState.phase}}","health":"{{.app.status.health.status}}"}
+  trigger.test-app-deployed: |-
+    - description: Application is synced and healthy. Triggered once per commit.
+      oncePer: app.status.operationState.syncResult.revision
+      send:
+      - test-app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy' 
 
 

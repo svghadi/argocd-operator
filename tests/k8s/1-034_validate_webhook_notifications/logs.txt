@@ -1,0 +1,85 @@
+
+
+time="2024-01-11T05:57:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T05:57:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 29e12213101d6da76a8baa7fe7ef4c8cca59eb49 [test-app-deployed] true}]" resource=default/my-app-3
+time="2024-01-11T05:57:01Z" level=info msg="Notification about condition 'test-app-deployed.[0].y7b5sbwa2Q329JYH755peeq-fBs' already sent to '{test-webhook }' using the configuration in namespace default" resource=default/my-app-3
+time="2024-01-11T05:57:01Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T05:58:01Z" level=info msg="invalidated cache for resource in namespace: default with the name: argocd-notifications-cm"
+time="2024-01-11T05:58:01Z" level=info msg="invalidated cache for resource in namespace: default with the name: argocd-notifications-secret"
+time="2024-01-11T05:58:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T05:58:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 29e12213101d6da76a8baa7fe7ef4c8cca59eb49 [test-app-deployed] true}]" resource=default/my-app-3
+time="2024-01-11T05:58:01Z" level=info msg="Notification about condition 'test-app-deployed.[0].y7b5sbwa2Q329JYH755peeq-fBs' already sent to '{test-webhook }' using the configuration in namespace default" resource=default/my-app-3
+time="2024-01-11T05:58:01Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T05:59:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T05:59:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 29e12213101d6da76a8baa7fe7ef4c8cca59eb49 [test-app-deployed] true}]" resource=default/my-app-3
+time="2024-01-11T05:59:01Z" level=info msg="Notification about condition 'test-app-deployed.[0].y7b5sbwa2Q329JYH755peeq-fBs' already sent to '{test-webhook }' using the configuration in namespace default" resource=default/my-app-3
+time="2024-01-11T05:59:01Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 29e12213101d6da76a8baa7fe7ef4c8cca59eb49 [test-app-deployed] true}]" resource=default/my-app-3
+time="2024-01-11T06:00:01Z" level=info msg="Notification about condition 'test-app-deployed.[0].y7b5sbwa2Q329JYH755peeq-fBs' already sent to '{test-webhook }' using the configuration in namespace default" resource=default/my-app-3
+time="2024-01-11T06:00:01Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute when condition: cannot fetch phase from <nil> (1:27)\n | app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'\n | ..........................^"
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute oncePer condition: cannot fetch syncResult from <nil> (1:27)\n | app.status.operationState.syncResult.revision\n | ..........................^"
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs  [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute when condition: cannot fetch phase from <nil> (1:27)\n | app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'\n | ..........................^"
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute oncePer condition: cannot fetch syncResult from <nil> (1:27)\n | app.status.operationState.syncResult.revision\n | ..........................^"
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs  [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute oncePer condition: cannot fetch revision from <nil> (1:38)\n | app.status.operationState.syncResult.revision\n | .....................................^"
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs  [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute oncePer condition: cannot fetch revision from <nil> (1:38)\n | app.status.operationState.syncResult.revision\n | .....................................^"
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs  [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=error msg="failed to execute oncePer condition: cannot fetch revision from <nil> (1:38)\n | app.status.operationState.syncResult.revision\n | .....................................^"
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs  [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] true}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Sending notification about condition 'test-app-deployed.[0].y7b5sbwa2Q329JYH755peeq-fBs' to '{test-webhook }' using the configuration in namespace default" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:00:43Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:01:00Z" level=info msg="invalidated cache for resource in namespace: default with the name: argocd-notifications-cm"
+time="2024-01-11T06:01:00Z" level=info msg="invalidated cache for resource in namespace: default with the name: argocd-notifications-secret"
+time="2024-01-11T06:01:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:01:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:01:01Z" level=info msg="Processing completed" resource=default/my-app-3
+time="2024-01-11T06:02:01Z" level=info msg="Start processing" resource=default/my-app-3
+time="2024-01-11T06:02:01Z" level=info msg="Trigger test-app-deployed result: [{[0].y7b5sbwa2Q329JYH755peeq-fBs 2a484cce7aee0afa110869e3c5065fbc367bae90 [test-app-deployed] false}]" resource=default/my-app-3
+time="2024-01-11T06:02:01Z" level=info msg="Processing completed" resource=default/my-app-3
+
+
+
+----
+
+
+
+
+
+
+
+
+[webhook] 2024/01/11 06:00:43 [8cd0a0] incoming HTTP POST request from 10.42.0.23:38286
+[webhook] 2024/01/11 06:00:43 [8cd0a0] example got matched
+[webhook] 2024/01/11 06:00:43 [8cd0a0] example hook triggered successfully
+[webhook] 2024/01/11 06:00:43 [8cd0a0] 200 | 0 B | 153.791µs | webhook | POST /hooks/example
+[webhook] 2024/01/11 06:00:43 [8cd0a0] executing /usr/bin/date (/usr/bin/date) with arguments ["/usr/bin/date"] and environment [PAYLOAD={"deployed":"my-app-3","health":"Healthy","status":"Succeeded"}] using /var/webhook as cwd
+[webhook] 2024/01/11 06:00:43 [8cd0a0] command output: Thu Jan 11 06:00:43 UTC 2024
+
+[webhook] 2024/01/11 06:00:43 [8cd0a0] finished handling example
+
+
