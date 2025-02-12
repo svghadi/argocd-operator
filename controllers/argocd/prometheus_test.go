@@ -176,7 +176,7 @@ func TestReconcileWorkloadStatusAlertRule(t *testing.T) {
 			assert.NoError(t, err)
 
 			if test.existingPromRule {
-				r.Client.Create(context.TODO(), newPrometheusRule(test.argocd.Namespace, "argocd-component-status-alert"))
+				r.Client.Create(context.TODO(), newPrometheusRule(test.argocd.Namespace, "argocd-component-status-alert", test.argocd))
 			}
 
 			err = r.reconcilePrometheusRule(test.argocd)

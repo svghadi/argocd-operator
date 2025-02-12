@@ -261,7 +261,7 @@ func (r *ReconcileArgoCD) reconcileServerMetricsServiceMonitor(cr *argoproj.Argo
 // reconcilePrometheusRule reconciles the PrometheusRule that triggers alerts based on workload statuses
 func (r *ReconcileArgoCD) reconcilePrometheusRule(cr *argoproj.ArgoCD) error {
 
-	promRule := newPrometheusRule(cr.Namespace, "argocd-component-status-alert")
+	promRule := newPrometheusRule(cr.Namespace, "argocd-component-status-alert", cr)
 
 	if argoutil.IsObjectFound(r.Client, cr.Namespace, promRule.Name, promRule) {
 
@@ -394,12 +394,13 @@ func (r *ReconcileArgoCD) reconcilePrometheusRule(cr *argoproj.ArgoCD) error {
 }
 
 // newPrometheusRule returns an empty PrometheusRule
-func newPrometheusRule(namespace, alertRuleName string) *monitoringv1.PrometheusRule {
+func newPrometheusRule(namespace, alertRuleName string, cr *argoproj.ArgoCD) *monitoringv1.PrometheusRule {
 
 	promRule := &monitoringv1.PrometheusRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      alertRuleName,
 			Namespace: namespace,
+			Labels:    argoutil.LabelsForCluster(cr),
 		},
 		Spec: monitoringv1.PrometheusRuleSpec{},
 	}

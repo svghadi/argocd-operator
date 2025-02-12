@@ -442,44 +442,35 @@ func (r *ReconcileArgoCD) applicationSetContainer(cr *argoproj.ArgoCD, addSCMGit
 }
 
 func (r *ReconcileArgoCD) reconcileApplicationSetServiceAccount(cr *argoproj.ArgoCD) (*corev1.ServiceAccount, error) {
-
 	sa := newServiceAccountWithName("applicationset-controller", cr)
 	setAppSetLabels(&sa.ObjectMeta)
 
-	exists := true
-	if err := argoutil.FetchObject(r.Client, cr.Namespace, sa.Name, sa); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return sa, err
-		}
-		exists = false
+	existingSA := &corev1.ServiceAccount{}
+	exists := argoutil.IsObjectFound(r.Client, cr.Namespace, sa.Name, existingSA)
+
+	// delete if appset is disabled and sa exists
+	if (cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled()) && exists {
+		argoutil.LogResourceDeletion(log, sa, "application set not enabled")
+		return sa, r.Client.Delete(context.TODO(), sa)
 	}
 
-	if cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled() {
-		if exists {
-			argoutil.LogResourceDeletion(log, sa, "application set not enabled")
-			err := r.Client.Delete(context.TODO(), sa)
-			if err != nil {
-				if !apierrors.IsNotFound(err) {
-					return sa, err
-				}
-			}
-		}
-		return sa, nil
-	}
-
+	// appset enabled and sa doesn't exists, create it
 	if !exists {
 		if err := controllerutil.SetControllerReference(cr, sa, r.Scheme); err != nil {
 			return sa, err
 		}
-
 		argoutil.LogResourceCreation(log, sa)
-		err := r.Client.Create(context.TODO(), sa)
-		if err != nil {
-			return sa, err
-		}
+		return sa, r.Client.Create(context.TODO(), sa)
 	}
 
-	return sa, nil
+	// sa already exists, reset any external updates
+	if !reflect.DeepEqual(sa.Labels, existingSA.Labels) {
+		existingSA.Labels = sa.Labels
+		argoutil.LogResourceUpdate(log, existingSA)
+		return sa, r.Client.Update(context.TODO(), existingSA)
+	}
+
+	return sa, nil // sa is up-to-date
 }
 
 // reconcileApplicationSetClusterRoleBinding reconciles required clusterrole for appset controller when ArgoCD is cluster-scoped
@@ -756,78 +747,46 @@ func (r *ReconcileArgoCD) reconcileApplicationSetSourceNamespacesResources(cr *a
 
 func (r *ReconcileArgoCD) reconcileApplicationSetRole(cr *argoproj.ArgoCD) (*v1.Role, error) {
 
-	policyRules := policyRuleForApplicationSetController()
-
-	role := newRole("applicationset-controller", policyRules, cr)
+	role := newRole("applicationset-controller", policyRuleForApplicationSetController(), cr)
 	setAppSetLabels(&role.ObjectMeta)
 
-	exists := true
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: role.Name, Namespace: cr.Namespace}, role)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
+	existingRole := &v1.Role{}
+	exists := argoutil.IsObjectFound(r.Client, cr.Namespace, role.Name, existingRole)
+
+	// delete and exit, if appset is disabled and role exists
+	if (cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled()) && exists {
+		argoutil.LogResourceDeletion(log, role, "application set not enabled")
+		return role, r.Client.Delete(context.TODO(), role)
+	}
+
+	// appset enabled and role doesn't exists, create it
+	if !exists {
+		if err := controllerutil.SetControllerReference(cr, role, r.Scheme); err != nil {
 			return role, err
 		}
-		exists = false
-	}
-
-	if cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled() {
-		if exists {
-			argoutil.LogResourceDeletion(log, role, "application set not enabled")
-			if err := r.Client.Delete(context.TODO(), role); err != nil {
-				if !apierrors.IsNotFound(err) {
-					return role, err
-				}
-			}
-		}
-		return role, nil
-	}
-
-	role.Rules = policyRules
-	if err = controllerutil.SetControllerReference(cr, role, r.Scheme); err != nil {
-		return role, err
-	}
-	if exists {
-		argoutil.LogResourceUpdate(log, role)
-		return role, r.Client.Update(context.TODO(), role)
-	} else {
 		argoutil.LogResourceCreation(log, role)
 		return role, r.Client.Create(context.TODO(), role)
 	}
 
+	// role already exists, reset any external updates
+	if !reflect.DeepEqual(role.Labels, existingRole.Labels) {
+		existingRole.Labels = role.Labels
+		argoutil.LogResourceUpdate(log, role)
+		return role, r.Client.Update(context.TODO(), existingRole)
+	}
+
+	return role, nil // role is up-to-date
 }
 
 func (r *ReconcileArgoCD) reconcileApplicationSetRoleBinding(cr *argoproj.ArgoCD, role *v1.Role, sa *corev1.ServiceAccount) error {
 
-	name := "applicationset-controller"
-
-	// get expected name
-	roleBinding := newRoleBindingWithname(name, cr)
-
-	// fetch existing rolebinding by name
-	roleBindingExists := true
-	if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: roleBinding.Name, Namespace: cr.Namespace}, roleBinding); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("failed to get the rolebinding associated with %s : %s", name, err)
-		}
-		roleBindingExists = false
-	}
-
-	if cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled() {
-		if roleBindingExists {
-			argoutil.LogResourceDeletion(log, roleBinding, "application set not enabled")
-			return r.Client.Delete(context.TODO(), roleBinding)
-		}
-		return nil
-	}
-
+	roleBinding := newRoleBindingWithname("applicationset-controller", cr)
 	setAppSetLabels(&roleBinding.ObjectMeta)
-
 	roleBinding.RoleRef = v1.RoleRef{
 		APIGroup: v1.GroupName,
 		Kind:     "Role",
 		Name:     role.Name,
 	}
-
 	roleBinding.Subjects = []v1.Subject{
 		{
 			Kind:      v1.ServiceAccountKind,
@@ -836,17 +795,32 @@ func (r *ReconcileArgoCD) reconcileApplicationSetRoleBinding(cr *argoproj.ArgoCD
 		},
 	}
 
-	if err := controllerutil.SetControllerReference(cr, roleBinding, r.Scheme); err != nil {
-		return err
+	existingRoleBinding := &v1.RoleBinding{}
+	exists := argoutil.IsObjectFound(r.Client, cr.Namespace, roleBinding.Name, existingRoleBinding)
+
+	// appset is disabled and rolebinding exists, delete and return
+	if (cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled()) && exists {
+		argoutil.LogResourceDeletion(log, roleBinding, "application set not enabled")
+		return r.Client.Delete(context.TODO(), roleBinding)
 	}
 
-	if roleBindingExists {
+	// appset enabled and rolebinding doesn't exists, create it
+	if !exists {
+		if err := controllerutil.SetControllerReference(cr, roleBinding, r.Scheme); err != nil {
+			return err
+		}
+		argoutil.LogResourceCreation(log, roleBinding)
+		return r.Client.Create(context.TODO(), roleBinding)
+	}
+
+	// rolebinding already exists, reset any external updates
+	if !reflect.DeepEqual(roleBinding.Labels, existingRoleBinding.Labels) {
+		existingRoleBinding.Labels = roleBinding.Labels
 		argoutil.LogResourceUpdate(log, roleBinding)
-		return r.Client.Update(context.TODO(), roleBinding)
+		return r.Client.Update(context.TODO(), existingRoleBinding)
 	}
 
-	argoutil.LogResourceCreation(log, roleBinding)
-	return r.Client.Create(context.TODO(), roleBinding)
+	return nil // nothing changed
 }
 
 func getApplicationSetContainerImage(cr *argoproj.ArgoCD) string {
@@ -891,7 +865,7 @@ func getApplicationSetResources(cr *argoproj.ArgoCD) corev1.ResourceRequirements
 
 func setAppSetLabels(obj *metav1.ObjectMeta) {
 	obj.Labels["app.kubernetes.io/name"] = "argocd-applicationset-controller"
-	obj.Labels["app.kubernetes.io/part-of"] = "argocd-applicationset"
+	obj.Labels["app.kubernetes.io/part-of"] = "argocd"
 	obj.Labels["app.kubernetes.io/component"] = "controller"
 }
 
@@ -900,25 +874,6 @@ func (r *ReconcileArgoCD) reconcileApplicationSetService(cr *argoproj.ArgoCD) er
 	log.Info("reconciling applicationset service")
 
 	svc := newServiceWithSuffix(common.ApplicationSetServiceNameSuffix, common.ApplicationSetServiceNameSuffix, cr)
-	if cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled() {
-
-		if argoutil.IsObjectFound(r.Client, cr.Namespace, svc.Name, svc) {
-			err := argoutil.FetchObject(r.Client, cr.Namespace, svc.Name, svc)
-			if err != nil {
-				return err
-			}
-			argoutil.LogResourceDeletion(log, svc, "application set not enabled")
-			err = r.Delete(context.TODO(), svc)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	} else {
-		if argoutil.IsObjectFound(r.Client, cr.Namespace, svc.Name, svc) {
-			return nil // Service found, do nothing
-		}
-	}
 	svc.Spec.Ports = []corev1.ServicePort{
 		{
 			Name:       "webhook",
@@ -932,16 +887,48 @@ func (r *ReconcileArgoCD) reconcileApplicationSetService(cr *argoproj.ArgoCD) er
 			TargetPort: intstr.FromInt(8080),
 		},
 	}
-
 	svc.Spec.Selector = map[string]string{
 		common.ArgoCDKeyName: nameWithSuffix(common.ApplicationSetServiceNameSuffix, cr),
 	}
 
-	if err := controllerutil.SetControllerReference(cr, svc, r.Scheme); err != nil {
-		return err
+	existingSvc := &corev1.Service{}
+	exists := argoutil.IsObjectFound(r.Client, cr.Namespace, svc.Name, existingSvc)
+
+	// appset is disabled and service exists, delete and return
+	if (cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.IsEnabled()) && exists {
+		argoutil.LogResourceDeletion(log, svc, "application set not enabled")
+		return r.Delete(context.TODO(), svc)
 	}
-	argoutil.LogResourceCreation(log, svc)
-	return r.Client.Create(context.TODO(), svc)
+
+	// appset enabled and service doesn't exists, create it
+	if !exists {
+		if err := controllerutil.SetControllerReference(cr, svc, r.Scheme); err != nil {
+			return err
+		}
+		argoutil.LogResourceCreation(log, svc)
+		return r.Client.Create(context.TODO(), svc)
+	}
+
+	// service already exists, reset any external updates
+	changed := false
+	if !reflect.DeepEqual(svc.Labels, svc.Labels) {
+		existingSvc.Labels = svc.Labels
+		changed = true
+	}
+	if !reflect.DeepEqual(svc.Spec.Ports, existingSvc.Spec.Ports) {
+		existingSvc.Spec.Ports = svc.Spec.Ports
+		changed = true
+	}
+	if !reflect.DeepEqual(svc.Spec.Selector, existingSvc.Spec.Selector) {
+		existingSvc.Spec.Selector = svc.Spec.Selector
+		changed = true
+	}
+	if changed {
+		argoutil.LogResourceUpdate(log, existingSvc)
+		return r.Client.Update(context.TODO(), existingSvc)
+	}
+
+	return nil // nothing changed
 }
 
 // Returns the name of the role/rolebinding for the source namespaces for applicationset-controller in the format of "argocdName-argocdNamespace-applicationset"
