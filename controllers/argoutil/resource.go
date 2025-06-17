@@ -16,6 +16,7 @@ package argoutil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -173,4 +174,44 @@ func LogResourceAction(log logr.Logger, action string, object metav1.Object, exp
 	}
 
 	log.Info(msg)
+}
+
+func CreateOrUpdate(c client.Client, obj client.Object, log logr.Logger) error {
+
+	err := c.Create(context.TODO(), obj)
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			log.V(1).Info("already exists")
+
+			//unObj := &unstructured.Unstructured{}
+			//unObj.SetGroupVersionKind(schema.GroupVersionKind{
+			//	Group: "rbac.authorization.k8s.io",
+			//	Version: "v1",
+			//	Kind: "RoleBinding",
+			//})
+			//
+			//err = client.Get(context.TODO(), types.NamespacedName{Name: obj.GetName(), Namespace: //obj.GetNamespace()}, unObj)
+			//if err != nil {
+			//	log.Error(err, "Failed to fetch live resource")
+			//}
+
+			patch := map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"labels": map[string]string{
+						common.ArgoCDKeyPartOf: common.ArgoCDAppName,
+					},
+				},
+			}
+			patchData, err := json.Marshal(patch)
+			if err != nil {
+				return err
+			}
+
+			// Apply the patch
+			return c.Patch(context.TODO(), obj, client.RawPatch(types.MergePatchType, patchData))
+		}
+		return err
+	}
+
+	return nil
 }

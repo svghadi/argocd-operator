@@ -1722,6 +1722,23 @@ func UseServer(name string, cr *argoproj.ArgoCD) bool {
 	return true
 }
 
+// UpdateMapValues copies values from the expected map to the existing map.
+// It returns true if any value was updated or added, otherwise false.
+func UpdateMapValues(expected map[string]string, existing map[string]string) bool {
+	updated := false
+
+	for key, expectedValue := range expected {
+		existingValue := existing[key]
+
+		if existingValue != expectedValue {
+			existing[key] = expectedValue
+			updated = true
+		}
+	}
+
+	return updated
+}
+
 // addKubernetesData checks for any Kubernetes-specific labels or annotations
 // in the live object and updates the source object to ensure critical metadata
 // (like scheduling, topology, or lifecycle information) is retained.

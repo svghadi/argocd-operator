@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oci-registry
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oci-registry
+  namespace: oci-registry
+  labels:
+    app: oci-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oci-registry
+  template:
+    metadata:
+      labels:
+        app: oci-registry
+    spec:
+      volumes:
+        - name: certs
+          emptyDir: {} # Ephemeral storage for generated certificates
+      initContainers:
+        - name: generate-certs
+          image: alpine:3.18
+          command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache openssl && \
+              mkdir -p /certs && \
+              openssl req -x509 -newkey rsa:4096 -keyout /certs/tls.key -out /certs/tls.crt -days 365 -nodes \
+              -subj "/CN=oci-registry/O=local-registry"
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+      containers:
+        - name: registry
+          image: registry:2
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+          env:
+            - name: REGISTRY_HTTP_ADDR
+              value: "0.0.0.0:443"
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certs/tls.crt"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certs/tls.key"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oci-registry
+  namespace: oci-registry
+spec:
+  selector:
+    app: oci-registry
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 443
+  type: ClusterIP

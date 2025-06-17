@@ -534,8 +534,11 @@ func (r *ReconcileArgoCD) reconcileNotificationsDeployment(cr *argoproj.ArgoCD, 
 		deploymentChanged = true
 	}
 
-	if !reflect.DeepEqual(existingDeployment.Spec.Template.Labels, desiredDeployment.Spec.Template.Labels) {
-		existingDeployment.Spec.Template.Labels = desiredDeployment.Spec.Template.Labels
+	// Add or update operator-managed template labels/annotations.
+	// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+	// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+	// This ensures such metadata is preserved during updates.
+	if UpdateMapValues(desiredDeployment.Spec.Template.Labels, existingDeployment.Spec.Template.Labels) {
 		if deploymentChanged {
 			explanation = ", "
 		}

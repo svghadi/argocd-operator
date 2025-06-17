@@ -266,24 +266,34 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 	AddSeccompProfileForOpenShift(r.Client, podSpec)
 
 	if exists {
-		// Add Kubernetes-specific labels/annotations from the live object in the source to preserve metadata.
-		addKubernetesData(deploy.Spec.Template.Labels, existing.Spec.Template.Labels)
-		addKubernetesData(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations)
-
 		// If the Deployment already exists, make sure the values we care about are up-to-date
 		deploymentsDifferent := identifyDeploymentDifference(*existing, *deploy)
+		changed := false
 		if len(deploymentsDifferent) > 0 {
 			existing.Spec.Template.Spec.Containers = podSpec.Containers
 			existing.Spec.Template.Spec.Volumes = podSpec.Volumes
 			existing.Spec.Template.Spec.ServiceAccountName = podSpec.ServiceAccountName
 			existing.Labels = deploy.Labels
-			existing.Spec.Template.Labels = deploy.Spec.Template.Labels
 			existing.Spec.Selector = deploy.Spec.Selector
 			existing.Spec.Template.Spec.NodeSelector = deploy.Spec.Template.Spec.NodeSelector
 			existing.Spec.Template.Spec.Tolerations = deploy.Spec.Template.Spec.Tolerations
 			existing.Spec.Template.Spec.Containers[0].SecurityContext = deploy.Spec.Template.Spec.Containers[0].SecurityContext
-			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
+			changed = true
+		}
 
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
+			changed = true
+		}
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
+			changed = true
+		}
+
+		if changed {
+			// FIXME: Accurately log what has changed
 			argoutil.LogResourceUpdate(log, existing, "due to difference in", deploymentsDifferent)
 			return r.Client.Update(context.TODO(), existing)
 		}
@@ -326,10 +336,6 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 		return "Labels"
 	}
 
-	if !reflect.DeepEqual(x.Spec.Template.Labels, y.Spec.Template.Labels) {
-		return ".Spec.Template.Labels"
-	}
-
 	if !reflect.DeepEqual(x.Spec.Selector, y.Spec.Selector) {
 		return ".Spec.Selector"
 	}
@@ -344,10 +350,6 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 
 	if !reflect.DeepEqual(xPodSpec.Containers[0].SecurityContext, yPodSpec.Containers[0].SecurityContext) {
 		return "Spec.Template.Spec..Containers[0].SecurityContext"
-	}
-
-	if !reflect.DeepEqual(x.Spec.Template.Annotations, y.Spec.Template.Annotations) {
-		return ".Spec.Template.Annotations"
 	}
 
 	return ""
@@ -693,6 +695,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetSourceNamespacesResources(cr *a
 			}
 		}
 
+		// REFACTOR: use a common helper function for initial role and rolebinding
 		// role & rolebinding for applicationset controller in source namespace
 		role := v1.Role{
 			ObjectMeta: metav1.ObjectMeta{
@@ -820,7 +823,13 @@ func (r *ReconcileArgoCD) reconcileApplicationSetRoleBinding(cr *argoproj.ArgoCD
 		return r.Client.Update(context.TODO(), existingRoleBinding)
 	}
 
+<<<<<<< Updated upstream
 	return nil // nothing changed
+=======
+	argoutil.LogResourceCreation(log, roleBinding)
+	return argoutil.CreateOrUpdate(r.Client, roleBinding, log)
+	//return r.Client.Create(context.TODO(), roleBinding) // WIP
+>>>>>>> Stashed changes
 }
 
 func getApplicationSetContainerImage(cr *argoproj.ArgoCD) string {
@@ -863,10 +872,12 @@ func getApplicationSetResources(cr *argoproj.ArgoCD) corev1.ResourceRequirements
 	return resources
 }
 
+// TODO: Remove this function and use common default labels
 func setAppSetLabels(obj *metav1.ObjectMeta) {
 	obj.Labels["app.kubernetes.io/name"] = "argocd-applicationset-controller"
 	obj.Labels["app.kubernetes.io/part-of"] = "argocd"
 	obj.Labels["app.kubernetes.io/component"] = "controller"
+	obj.Labels[common.WatchedByOperatorKey] = common.ArgoCDAppName
 }
 
 // reconcileApplicationSetService will ensure that the Service is present for the ApplicationSet webhook and metrics component.

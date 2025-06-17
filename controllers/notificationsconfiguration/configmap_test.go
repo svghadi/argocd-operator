@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-operator/common"
 )
 
 type notificationsOpts func(*v1alpha1.NotificationsConfiguration)
@@ -112,6 +113,9 @@ func TestReconcileNotifications_CreateConfigMap(t *testing.T) {
 
 	// Verify that the configmap has the default trigger
 	assert.NotEqual(t, testCM.Data["trigger.on-created"], "")
+
+	// Verify that the configmap has the cache tracking label
+	assert.Equal(t, testCM.Labels[common.WatchedByOperatorKey], common.ArgoCDAppName)
 }
 
 func TestReconcileNotifications_UpdateConfigMap(t *testing.T) {

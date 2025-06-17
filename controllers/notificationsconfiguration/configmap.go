@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 )
 
@@ -22,10 +23,14 @@ const (
 // reconcileNotificationsConfigmap will ensure that the notifications configuration is updated
 func (r *NotificationsConfigurationReconciler) reconcileNotificationsConfigmap(cr *v1alpha1.NotificationsConfiguration) error {
 
+	// REFACTOR: use a common helper function for initial configmap
 	NotificationsConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ArgoCDNotificationsConfigMap,
 			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 		},
 	}
 	if err := argoutil.FetchObject(r.Client, cr.Namespace, NotificationsConfigMap.Name, NotificationsConfigMap); err != nil {

@@ -382,7 +382,8 @@ func newDeploymentWithName(name string, component string, cr *argoproj.ArgoCD) *
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					common.ArgoCDKeyName: name,
+					common.ArgoCDKeyName:        name,
+					common.WatchedByOperatorKey: common.ArgoCDAppName,
 				},
 				Annotations: make(map[string]string),
 			},
@@ -587,6 +588,18 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 				explanation += ", "
 			}
 			explanation += "serviceAccountName"
+			changed = true
+		}
+
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
+			if changed {
+				explanation = ", "
+			}
+			explanation += "pod labels"
 			changed = true
 		}
 
@@ -884,6 +897,19 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 			explanation += "container security context"
 			changed = true
 		}
+
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
+			if changed {
+				explanation += ", "
+			}
+			explanation += "pod labels"
+			changed = true
+		}
+
 		if changed {
 			argoutil.LogResourceUpdate(log, existing, "updating", explanation)
 			return r.Client.Update(context.TODO(), existing)
@@ -1313,25 +1339,22 @@ func (r *ReconcileArgoCD) reconcileRepoDeployment(cr *argoproj.ArgoCD, useTLSFor
 			changed = true
 		}
 
-		// Add Kubernetes-specific labels/annotations from the live object in the source to preserve metadata.
-		addKubernetesData(deploy.Spec.Template.Labels, existing.Spec.Template.Labels)
-		addKubernetesData(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations)
-
-		if !reflect.DeepEqual(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
-			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
 			if changed {
 				explanation += ", "
 			}
-			explanation += "annotations"
+			explanation += "pod annotations"
 			changed = true
 		}
-
-		if !reflect.DeepEqual(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
-			existing.Spec.Template.Labels = deploy.Spec.Template.Labels
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
 			if changed {
 				explanation += ", "
 			}
-			explanation += "labels"
+			explanation += "pod labels"
 			changed = true
 		}
 
@@ -1645,24 +1668,24 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 			}
 		}
 
-		// Add Kubernetes-specific labels/annotations from the live object in the source to preserve metadata.
-		addKubernetesData(deploy.Spec.Template.Labels, existing.Spec.Template.Labels)
-		addKubernetesData(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations)
-
-		if !reflect.DeepEqual(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
 			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
 			if changed {
 				explanation += ", "
 			}
-			explanation += "annotations"
+			explanation += "pod annotations"
 			changed = true
 		}
-		if !reflect.DeepEqual(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
 			existing.Spec.Template.Labels = deploy.Spec.Template.Labels
 			if changed {
 				explanation += ", "
 			}
-			explanation += "labels"
+			explanation += "pod labels"
 			changed = true
 		}
 

@@ -69,7 +69,8 @@ func newStatefulSetWithName(name string, component string, cr *argoproj.ArgoCD) 
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					common.ArgoCDKeyName: name,
+					common.ArgoCDKeyName:        name,
+					common.WatchedByOperatorKey: common.ArgoCDAppName,
 				},
 				Annotations: make(map[string]string),
 			},
@@ -122,7 +123,8 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 			"checksum/init-config": "7128bfbb51eafaffe3c33b1b463e15f0cf6514cec570f9d9c4f2396f28c724ac", // TODO: Should this be hard-coded?
 		},
 		Labels: map[string]string{
-			common.ArgoCDKeyName: nameWithSuffix("redis-ha", cr),
+			common.ArgoCDKeyName:        nameWithSuffix("redis-ha", cr),
+			common.WatchedByOperatorKey: common.ArgoCDAppName,
 		},
 	}
 
@@ -900,27 +902,25 @@ func (r *ReconcileArgoCD) reconcileApplicationControllerStatefulSet(cr *argoproj
 			changed = true
 		}
 
-		// Add Kubernetes-specific labels/annotations from the live object in the source to preserve metadata.
-		addKubernetesData(ss.Spec.Template.Labels, existing.Spec.Template.Labels)
-		addKubernetesData(ss.Spec.Template.Annotations, existing.Spec.Template.Annotations)
-
-		if !reflect.DeepEqual(ss.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
-			existing.Spec.Template.Annotations = ss.Spec.Template.Annotations
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(ss.Spec.Template.Annotations, existing.Spec.Template.Annotations) {
 			if changed {
 				explanation += ", "
 			}
 			explanation += "annotations"
 			changed = true
 		}
-
-		if !reflect.DeepEqual(ss.Spec.Template.Labels, existing.Spec.Template.Labels) {
-			existing.Spec.Template.Labels = ss.Spec.Template.Labels
+		if UpdateMapValues(ss.Spec.Template.Labels, existing.Spec.Template.Labels) {
 			if changed {
 				explanation += ", "
 			}
 			explanation += "labels"
 			changed = true
 		}
+
 		if changed {
 			argoutil.LogResourceUpdate(log, existing, "updating", explanation)
 			return r.Client.Update(context.TODO(), existing)

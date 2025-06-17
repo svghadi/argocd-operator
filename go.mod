@@ -2,6 +2,8 @@ module github.com/argoproj-labs/argocd-operator
 
 go 1.22.0
 
+replace sigs.k8s.io/controller-runtime => github.com/svghadi/controller-runtime v0.0.0-20250218045345-e09745e45291
+
 require (
 	// Pin github.com/argoproj/argo-cd/v2 to v2.12.3
 	// ref: https://github.com/argoproj-labs/argocd-operator/pull/1606#issuecomment-2490948356

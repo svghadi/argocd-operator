@@ -73,6 +73,9 @@ func CreateTLSSecret(client client.Client, name string, namespace string, data m
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 		},
 		Type: corev1.SecretTypeTLS,
 		Data: data,

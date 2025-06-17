@@ -68,6 +68,9 @@ func (r *ReconcileArgoCD) getDexOAuthClientSecret(cr *argoproj.ArgoCD) (*string,
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "argocd-dex-server-token-",
 				Namespace:    cr.Namespace,
+				Labels: map[string]string{
+					common.WatchedByOperatorKey: common.ArgoCDAppName,
+				},
 				Annotations: map[string]string{
 					corev1.ServiceAccountNameKey: sa.Name,
 				},
@@ -407,6 +410,18 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 				explanation += ", "
 			}
 			explanation += "container security context"
+			changed = true
+		}
+
+		// Add or update operator-managed template labels/annotations.
+		// Kubernetes and operator may add critical metadata (e.g., scheduling, topology, lifecycle)
+		// as labels or annotations in .spec.template.labels & .spec.template.annotations of Deployments.
+		// This ensures such metadata is preserved during updates.
+		if UpdateMapValues(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
+			if changed {
+				explanation += ", "
+			}
+			explanation += "pod labels"
 			changed = true
 		}
 

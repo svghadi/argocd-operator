@@ -17,27 +17,26 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	appsv1 "github.com/openshift/api/apps/v1"
-	configv1 "github.com/openshift/api/config/v1"
-	oauthv1 "github.com/openshift/api/oauth/v1"
-	routev1 "github.com/openshift/api/route/v1"
-	templatev1 "github.com/openshift/api/template/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocdexport"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/argocd-operator/controllers/cacheutils"
 
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -45,18 +44,16 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	v1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	v1beta1 "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/version"
 	//+kubebuilder:scaffold:imports
@@ -66,14 +63,6 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-	utilruntime.Must(v1beta1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
-}
 
 func printVersion() {
 	setupLog.Info(fmt.Sprintf("Go Version: %s", goruntime.Version()))
@@ -164,7 +153,15 @@ func main() {
 	}
 	setupLog.Info(fmt.Sprintf("Watching namespace \"%s\"", namespace))
 
-	// Set default manager options
+	// Register the API groups to the scheme
+	setupLog.Info("Registering API groups to the scheme")
+	cacheutils.SetupScheme(scheme)
+
+	// Create a manager with optimized cache and client options
+	// Refer cache.go & scheme.go for details
+	cache := cacheutils.SetupCache()
+	//_cacheClient := setupCacheClient()
+
 	options := manager.Options{
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -172,78 +169,27 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "b674928d.argoproj.io",
-	}
-
-	if watchedNsCache := getDefaultWatchedNamespacesCacheOptions(); watchedNsCache != nil {
-		options.Cache = cache.Options{
-			DefaultNamespaces: watchedNsCache,
-		}
+		//Client:                 cacheClient,
+		Cache: cache,
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to create manager")
 		os.Exit(1)
 	}
 
-	setupLog.Info("Registering Components.")
+	liveClient, _ := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Scheme:     mgr.GetScheme(),
+		Mapper:     mgr.GetRESTMapper(),
+		Cache:      nil,
+	})
+	clientWrapper := argoutil.NewClientWrapper(mgr.GetClient(), liveClient)
 
-	// Setup Scheme for all resources
-	if err := v1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
-		setupLog.Error(err, "")
-		os.Exit(1)
-	}
-
-	if err := v1beta1.AddToScheme(mgr.GetScheme()); err != nil {
-		setupLog.Error(err, "")
-		os.Exit(1)
-	}
-
-	// Setup Scheme for Prometheus if available.
-	if argocd.IsPrometheusAPIAvailable() {
-		if err := monitoringv1.AddToScheme(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-	}
-
-	// Setup Scheme for OpenShift Routes if available.
-	if argocd.IsRouteAPIAvailable() {
-		if err := routev1.Install(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-	}
-
-	// Set up the scheme for openshift config if available
-	if argocd.IsVersionAPIAvailable() {
-		if err := configv1.Install(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-	}
-
-	// Setup Schemes for SSO if template instance is available.
-	if argocd.CanUseKeycloakWithTemplate() {
-		setupLog.Info("Keycloak instance can be managed using OpenShift Template")
-		if err := templatev1.Install(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-		if err := appsv1.Install(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-		if err := oauthv1.Install(mgr.GetScheme()); err != nil {
-			setupLog.Error(err, "")
-			os.Exit(1)
-		}
-	} else {
-		setupLog.Info("Keycloak instance cannot be managed using OpenShift Template, as DeploymentConfig/Template API is not present")
-	}
-
+	// Setup all Controllers
 	if err = (&argocd.ReconcileArgoCD{
-		Client:        mgr.GetClient(),
+		Client:        clientWrapper,
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
 	}).SetupWithManager(mgr); err != nil {
@@ -251,14 +197,14 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&argocdexport.ReconcileArgoCDExport{
-		Client: mgr.GetClient(),
+		Client: clientWrapper,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ArgoCDExport")
 		os.Exit(1)
 	}
 	if err = (&notificationsConfig.NotificationsConfigurationReconciler{
-		Client: mgr.GetClient(),
+		Client: clientWrapper,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NotificationsConfiguration")
@@ -283,6 +229,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Monitor memory usage and cache stats
+	go monitorSystemStats(mgr.GetCache(), mgr.GetScheme(), clientWrapper)
+
+	// Start the manager
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -324,4 +274,42 @@ func getWatchNamespace() (string, error) {
 		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
 	}
 	return ns, nil
+}
+
+// monitorSystemStats periodically prints memory usage and informer cache stats
+func monitorSystemStats(c cache.Cache, s *runtime.Scheme, cw *argoutil.ClientWrapper) {
+	var memStats goruntime.MemStats
+
+	ctx := context.TODO()
+	c.WaitForCacheSync(ctx)
+
+	for {
+		fmt.Printf("\n------------------------------------\n")
+		// Memory stats
+		goruntime.ReadMemStats(&memStats)
+		fmt.Printf("Memory Usage: Alloc = %.2f MB, TotalAlloc = %.2f MB, Sys = %.2f MB, NumGC = %v\n",
+			float64(memStats.Alloc)/(1024*1024),
+			float64(memStats.TotalAlloc)/(1024*1024),
+			float64(memStats.Sys)/(1024*1024),
+			memStats.NumGC)
+
+		// cache stats
+		stats := c.GetCacheStats()
+		count := 0
+		size := 0
+		for gvk, stat := range stats {
+			fmt.Printf("Resource: %s, Count: %d, Size: %dKB\n", gvk, stat.Count, stat.Size/1024)
+			count += stat.Count
+			size += stat.Size
+		}
+
+		fmt.Printf("\nTotal Count: %d", count)
+		fmt.Printf("\nTotal Size: %dKB", size/1024)
+		fmt.Printf("\nLive API Calls: %d", cw.GetLiveCount())
+		fmt.Printf("\n------------------------------------\n")
+
+		// Sleep for a while before printing again
+		time.Sleep(10 * time.Second)
+
+	}
 }

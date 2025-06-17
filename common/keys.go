@@ -231,4 +231,10 @@ const (
 
 	// Label Selector is an env variable for ArgoCD instance reconcilliation.
 	ArgoCDLabelSelectorKey = "ARGOCD_LABEL_SELECTOR"
+
+	// WatchedByOperatorKey label helps the controller-runtime filter and track only relevant resources.
+	// This label is an important optimization to avoid caching resources with high volume or high cardinality.
+	// If a required resource loses this label, self-healing logic will automatically reapply it.
+	// Check cache.go for details on which resources are filtered based on this label.
+	WatchedByOperatorKey = "operator.argoproj.io/watched-by"
 )

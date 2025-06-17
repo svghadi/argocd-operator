@@ -143,7 +143,8 @@ func getKeycloakConfigMapTemplate(ns string) *corev1.ConfigMap {
 				"service.beta.openshift.io/inject-cabundle": "true",
 			},
 			Labels: map[string]string{
-				"application": "${APPLICATION_NAME}",
+				"application":               "${APPLICATION_NAME}",
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
 			},
 			Name:      "${APPLICATION_NAME}-service-ca",
 			Namespace: ns,
@@ -156,7 +157,8 @@ func getKeycloakSecretTemplate(ns string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"application": "${APPLICATION_NAME}",
+				"application":               "${APPLICATION_NAME}",
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
 			},
 			Name:      "${APPLICATION_NAME}-secret",
 			Namespace: ns,
@@ -282,7 +284,10 @@ func getKeycloakDeploymentConfigTemplate(cr *argoproj.ArgoCD) *appsv1.Deployment
 			Annotations: map[string]string{
 				"argocd.argoproj.io/realm-created": "false",
 			},
-			Labels:    map[string]string{"application": "${APPLICATION_NAME}"},
+			Labels: map[string]string{
+				"application":               "${APPLICATION_NAME}",
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 			Name:      "${APPLICATION_NAME}",
 			Namespace: ns,
 			OwnerReferences: []metav1.OwnerReference{
@@ -315,8 +320,9 @@ func getKeycloakDeploymentConfigTemplate(cr *argoproj.ArgoCD) *appsv1.Deployment
 			Template: &corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"application":      "${APPLICATION_NAME}",
-						"deploymentConfig": "${APPLICATION_NAME}",
+						"application":               "${APPLICATION_NAME}",
+						"deploymentConfig":          "${APPLICATION_NAME}",
+						common.WatchedByOperatorKey: common.ArgoCDAppName,
 					},
 					Name: "${APPLICATION_NAME}",
 				},
@@ -376,7 +382,10 @@ func getKeycloakDeploymentConfigTemplate(cr *argoproj.ArgoCD) *appsv1.Deployment
 func getKeycloakServiceTemplate(ns string) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    map[string]string{"application": "${APPLICATION_NAME}"},
+			Labels: map[string]string{
+				"application":               "${APPLICATION_NAME}",
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 			Name:      "${APPLICATION_NAME}",
 			Namespace: ns,
 			Annotations: map[string]string{
@@ -399,7 +408,10 @@ func getKeycloakServiceTemplate(ns string) *corev1.Service {
 func getKeycloakRouteTemplate(ns string, cr argoproj.ArgoCD) *routev1.Route {
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      map[string]string{"application": "${APPLICATION_NAME}"},
+			Labels: map[string]string{
+				"application":               "${APPLICATION_NAME}",
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 			Name:        "${APPLICATION_NAME}",
 			Namespace:   ns,
 			Annotations: map[string]string{"description": "Route for application's https service"},
@@ -426,6 +438,9 @@ func newKeycloakTemplateInstance(cr *argoproj.ArgoCD) (*template.TemplateInstanc
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaultTemplateIdentifier,
 			Namespace: cr.Namespace,
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 		},
 		Spec: template.TemplateInstanceSpec{
 			Template: tpl,
@@ -475,6 +490,9 @@ func newKeycloakTemplate(cr *argoproj.ArgoCD) (template.Template, error) {
 				"openshift.io/display-name": "Keycloak",
 				"tags":                      "keycloak",
 				"version":                   "9.0.4-SNAPSHOT",
+			},
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
 			},
 			Name:      defaultTemplateIdentifier,
 			Namespace: ns,
@@ -528,6 +546,9 @@ func newKeycloakIngress(cr *argoproj.ArgoCD) *networkingv1.Ingress {
 			Annotations: atns,
 			Name:        defaultKeycloakIdentifier,
 			Namespace:   cr.Namespace,
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
 		},
 		Spec: networkingv1.IngressSpec{
 			TLS: []networkingv1.IngressTLS{
@@ -569,7 +590,8 @@ func newKeycloakService(cr *argoproj.ArgoCD) *corev1.Service {
 			Name:      defaultKeycloakIdentifier,
 			Namespace: cr.Namespace,
 			Labels: map[string]string{
-				"app": defaultKeycloakIdentifier,
+				"app":                       defaultKeycloakIdentifier,
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
 			},
 		},
 		Spec: corev1.ServiceSpec{
@@ -603,7 +625,8 @@ func newKeycloakDeployment(cr *argoproj.ArgoCD) *k8sappsv1.Deployment {
 				"argocd.argoproj.io/realm-created": "false",
 			},
 			Labels: map[string]string{
-				"app": defaultKeycloakIdentifier,
+				"app":                       defaultKeycloakIdentifier,
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
 			},
 		},
 		Spec: k8sappsv1.DeploymentSpec{
@@ -616,7 +639,8 @@ func newKeycloakDeployment(cr *argoproj.ArgoCD) *k8sappsv1.Deployment {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": defaultKeycloakIdentifier,
+						"app":                       defaultKeycloakIdentifier,
+						common.WatchedByOperatorKey: common.ArgoCDAppName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -1022,6 +1046,9 @@ func (r *ReconcileArgoCD) updateArgoCDConfiguration(cr *argoproj.ArgoCD, kRouteU
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      getOAuthClient(cr.Namespace),
 				Namespace: cr.Namespace,
+				Labels: map[string]string{
+					common.WatchedByOperatorKey: common.ArgoCDAppName,
+				},
 			},
 			Secret: oAuthClientSecret,
 			RedirectURIs: []string{fmt.Sprintf("%s/auth/realms/%s/broker/openshift-v4/endpoint",

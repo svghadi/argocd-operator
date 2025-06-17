@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: test
+spec:
+  applicationSet:
+    enabled: true
+  notifications:
+    enabled: true
+  monitoring:
+    enabled: true
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+  server:
+    route:
+      enabled: true
+  redis:
+    image: "public.ecr.aws/docker/library/redis"
+    version: "5"

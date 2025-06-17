@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -92,8 +93,10 @@ var ActiveInstanceMap = make(map[string]string)
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *ReconcileArgoCD) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 
+	bc := r.Client.(*argoutil.ClientWrapper).GetLiveCount()
 	result, argocd, err := r.internalReconcile(ctx, request)
-
+	ac := r.Client.(*argoutil.ClientWrapper).GetLiveCount() - bc
+	log.Info(fmt.Sprintf("LIVE COUNT: %d", ac))
 	message := ""
 	if err != nil {
 		message = err.Error()

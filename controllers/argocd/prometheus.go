@@ -400,7 +400,13 @@ func newPrometheusRule(namespace, alertRuleName string, cr *argoproj.ArgoCD) *mo
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      alertRuleName,
 			Namespace: namespace,
+<<<<<<< Updated upstream
 			Labels:    argoutil.LabelsForCluster(cr),
+=======
+			Labels: map[string]string{
+				common.WatchedByOperatorKey: common.ArgoCDAppName,
+			},
+>>>>>>> Stashed changes
 		},
 		Spec: monitoringv1.PrometheusRuleSpec{},
 	}
