@@ -1,0 +1,61 @@
+name: Update Argo CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      ARGOCD_VERSION:
+        description: 'Target Argo CD version (e.g. 3.1.8)'
+        required: true
+        type: string
+  
+permissions: {}
+
+jobs:
+  update-agrocd:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Update Argo CD to ${{ inputs.ARGOCD_VERSION }}
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Git config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo podman
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Update Argo CD version
+        run: |
+          sed -i "s/^ARGO_CD_TARGET_VERSION ?=.*/ARGO_CD_TARGET_VERSION ?= ${{ inputs.ARGOCD_VERSION }}/" Makefile
+          make update-dependencies
+
+      - name: Prepare metadata for PR
+        id: metadata
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          echo "ts=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} 
+          commit-message: "chore(deps): update to Argo CD ${{ inputs.ARGOCD_VERSION }}"
+          branch: deps/argocd-${{ inputs.ARGOCD_VERSION }}-${{ steps.metadata.outputs.ts }}
+          delete-branch: true
+          title: "chore(deps): update to Argo CD ${{ inputs.ARGOCD_VERSION }}"
+          body: |
+            This PR updates the Argo CD version to ${{ inputs.ARGOCD_VERSION }}. 
